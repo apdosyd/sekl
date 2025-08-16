@@ -14,7 +14,6 @@
     button:hover { background-color: #0056b3; }
     .countdown { margin-top: 10px; font-weight: bold; color: #333; }
     #currentTime { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 20px; }
-    .log { background: #222; color: #0f0; padding: 10px; font-size: 12px; height: 120px; overflow-y: auto; direction: ltr; }
   </style>
 </head>
 <body>
@@ -23,15 +22,13 @@
 <div id="currentTime">جارٍ تحميل الوقت...</div>
 <div id="bikesContainer"></div>
 
-<h3>📋 سجل الأحداث:</h3>
-<div class="log" id="logBox"></div>
-
 <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+  // إعداد Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyBmGUwMrocACdo3eelRAvTMFWLD8Bc9SAo",
     authDomain: "sekl-8ceef.firebaseapp.com",
@@ -44,12 +41,7 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  function log(msg) {
-    const box = document.getElementById("logBox");
-    box.innerHTML += msg + "<br>";
-    box.scrollTop = box.scrollHeight;
-  }
-
+  // دالة عرض الوقت الحالي
   function formatTime12(date) {
     let hours = date.getHours();
     const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -67,7 +59,8 @@
   setInterval(updateCurrentTime, 1000);
   updateCurrentTime();
 
-  const bikeCount = 5; // للتجربة خليه 5 بس
+  // إنشاء الواجهه
+  const bikeCount = 5; // عدد العجل للتجربة
   const timers = {};
   const container = document.getElementById('bikesContainer');
 
@@ -82,13 +75,14 @@
       <input id="bike${i}" placeholder="ادخل اسم العجلة" />
       <label>مدة الإيجار (بالدقائق):</label>
       <input type="number" id="duration${i}" min="1" placeholder="ادخل مدة الإيجار" />
-      <button onclick="startRent(${i})" id="startBtn${i}">ابدأ الإيجار</button>
-      <button onclick="stopRent(${i})" id="stopBtn${i}" style="background-color: #dc3545; margin-top: 5px;">إيقاف الإيجار</button>
+      <button onclick="startRent(${i})">ابدأ الإيجار</button>
+      <button onclick="stopRent(${i})" style="background-color: #dc3545; margin-top: 5px;">إيقاف الإيجار</button>
       <div class="countdown" id="countdown${i}">الوقت المتبقي: -</div>
     `;
     container.appendChild(div);
   }
 
+  // بدء الإيجار
   function startRent(i) {
     const name = document.getElementById(`person${i}`).value.trim();
     const bike = document.getElementById(`bike${i}`).value.trim();
@@ -109,14 +103,18 @@
       endTime: end.getTime()
     });
 
-    log(`✅ بدأ إيجار (${name}) لـ (${bike}) - ينتهي عند: ${formatTime12(end)}`);
+    alert(`✅ بدأ إيجار (${name}) لـ (${bike}) - ينتهي عند: ${formatTime12(end)}`);
   }
 
+  // إيقاف الإيجار
   function stopRent(i) {
     db.ref("bikes/" + i).remove();
-    log(`🛑 تم إيقاف إيجار العجلة ${i}`);
+    document.getElementById(`countdown${i}`).textContent = "الوقت المتبقي: -";
+    if (timers[i]) clearInterval(timers[i]);
+    alert(`🛑 تم إيقاف إيجار العجلة ${i}`);
   }
 
+  // تحديث العد التنازلي
   function updateCountdown(i, endTime, person, bikeName) {
     const countdownEl = document.getElementById(`countdown${i}`);
     if (timers[i]) clearInterval(timers[i]);
@@ -125,10 +123,8 @@
       const now = Date.now();
       let diff = Math.floor((endTime - now) / 1000);
 
-      const returnTime = formatTime12(new Date(endTime));
-
       if (diff <= 0) {
-        countdownEl.innerHTML = `انتهى وقت إيجار "<strong>${bikeName}</strong>" لـ "<strong>${person}</strong>"!<br> وقت الانتهاء كان: <strong>${returnTime}</strong>`;
+        countdownEl.innerHTML = `⏰ انتهى وقت إيجار "<strong>${bikeName}</strong>" لـ "<strong>${person}</strong>"!`;
         document.getElementById('alarm').play();
         clearInterval(timers[i]);
         return;
@@ -136,32 +132,26 @@
 
       const mins = Math.floor(diff / 60);
       const secs = diff % 60;
-      countdownEl.innerHTML = `⏳ الوقت المتبقي: <strong>${mins}</strong> دقيقة و <strong>${secs}</strong> ثانية<br> ينتهي الساعة: <strong>${returnTime}</strong>`;
+      countdownEl.innerHTML = `⏳ الوقت المتبقي: <strong>${mins}</strong> دقيقة و <strong>${secs}</strong> ثانية`;
     }
 
     tick();
     timers[i] = setInterval(tick, 1000);
   }
 
+  // مراقبة التغيرات من Firebase
   db.ref("bikes").on("value", snapshot => {
     const data = snapshot.val() || {};
 
     for (let i = 1; i <= bikeCount; i++) {
       if (data[i]) {
         const { person, bikeName, endTime } = data[i];
-        log(`➡️ تحميل إيجار للعجلة ${i}: ${person}, ${bikeName}, endTime=${endTime} (${typeof endTime})`);
-
         if (endTime) {
           updateCountdown(i, Number(endTime), person, bikeName);
-        } else {
-          log(`⚠️ مفيش endTime راجع من Firebase للعجلة ${i}`);
         }
       } else {
         document.getElementById(`countdown${i}`).textContent = "الوقت المتبقي: -";
-        if (timers[i]) {
-          clearInterval(timers[i]);
-          timers[i] = null;
-        }
+        if (timers[i]) clearInterval(timers[i]);
       }
     }
   });

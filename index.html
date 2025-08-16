@@ -2,10 +2,11 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>تأجير العجل - نسخة تجريبية</title>
+  <title>تجربة تأجير العجل - موبايل</title>
 </head>
 <body>
-  <h1>تجربة العد التنازلي</h1>
+  <h1>تجربة العد التنازلي (3 عجلات)</h1>
+  <div id="debug" style="background:#eee; padding:10px; margin:10px 0; font-size:14px;"></div>
   <div id="bikesContainer"></div>
 
   <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
@@ -28,13 +29,18 @@
     const db = firebase.database();
 
     const timers = {};
-    const bikeCount = 3; // 🔥 للتجربة بس
+    const bikeCount = 3;
 
     const container = document.getElementById("bikesContainer");
+    const debug = document.getElementById("debug");
+
+    function log(msg) {
+      debug.innerHTML += msg + "<br>";
+    }
 
     for (let i = 1; i <= bikeCount; i++) {
       container.innerHTML += `
-        <div>
+        <div style="border:1px solid #ccc; margin:5px; padding:10px;">
           <h3>عجلة ${i}</h3>
           <input id="person${i}" placeholder="اسم المستأجر">
           <input id="bike${i}" placeholder="اسم العجلة">
@@ -43,7 +49,6 @@
           <button onclick="stopRent(${i})">إلغاء</button>
           <p id="countdown${i}">الوقت المتبقي: -</p>
         </div>
-        <hr>
       `;
     }
 
@@ -60,7 +65,7 @@
       const start = Date.now();
       const end = start + mins * 60 * 1000;
 
-      console.log(`⏰ بدء إيجار ${bike} لـ ${person}, ينتهي عند ${end}`);
+      log(`⏰ بدأ إيجار (${bike}) لـ (${person}) - ينتهي عند: ${new Date(end).toLocaleTimeString()}`);
 
       db.ref("bikes/" + i).set({
         person,
@@ -72,6 +77,7 @@
 
     function stopRent(i) {
       db.ref("bikes/" + i).remove();
+      log(`🛑 تم إلغاء إيجار العجلة ${i}`);
     }
 
     function updateCountdown(i, endTime, person, bikeName) {
@@ -100,11 +106,12 @@
 
     db.ref("bikes").on("value", snap => {
       const data = snap.val() || {};
-      console.log("📥 بيانات من Firebase:", data);
+      log("📥 تحديث من Firebase: " + JSON.stringify(data));
 
       for (let i = 1; i <= bikeCount; i++) {
         if (data[i]) {
           const { person, bikeName, endTime } = data[i];
+          log(`➡️ تحميل إيجار للعجلة ${i}: ${person}, ${bikeName}, endTime=${endTime}`);
           updateCountdown(i, Number(endTime), person, bikeName);
         } else {
           document.getElementById(`countdown${i}`).innerText = "الوقت المتبقي: -";

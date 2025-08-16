@@ -54,12 +54,16 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <script>
-    // Firebase config
+    // ✅ Firebase config بتاعك
     const firebaseConfig = {
-      apiKey: "PUT-YOUR-API-KEY-HERE",
-      authDomain: "YOUR-PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
-      projectId: "YOUR-PROJECT-ID",
+      apiKey: "AIzaSyD5zCOEqEBNUULIxtadn6wNF_QU_PgbOQ0",
+      authDomain: "sekl-c6dbf.firebaseapp.com",
+      databaseURL: "https://sekl-c6dbf-default-rtdb.firebaseio.com",
+      projectId: "sekl-c6dbf",
+      storageBucket: "sekl-c6dbf.appspot.com",
+      messagingSenderId: "158135231453",
+      appId: "1:158135231453:web:d1ddad09b14f2390004c34",
+      measurementId: "G-DNBH4Z3ZJ9"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -124,10 +128,6 @@
       if(!person||!bike||!mins||mins<=0){ toast('⚠️ أدخل البيانات كاملة'); return; }
       const start=Date.now(), end=start+mins*60*1000;
       db.ref('bikes/'+i).set({person,bikeName:bike,startTime:start,endTime:end});
-
-      // ✅ شغل العداد فورًا محليًا
-      setDisabled(i,true);
-      startCountdown(i,end,person,bike);
     }
     function stopRent(i){ db.ref('bikes/'+i).remove(); }
     function setDisabled(i,on){

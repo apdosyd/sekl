@@ -1,241 +1,163 @@
-<!DOCTYPE html><html lang="ar" dir="rtl">
+<!DOCTYPE html>
+<html lang="ar">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>منصّة تأجير العجل</title>
-  <!-- Tailwind CDN (for clean UI) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="color-scheme" content="light dark" />
+  <title>صفحة تأجير العجل</title>
   <style>
-    /* fallback fonts tuning */
-    body { font-feature-settings: "ss01" on, "cv01" on; }
-    .hide { display:none; }
+    body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; background: #f5f5f5; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .bike-container { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 0 5px #ccc; }
+    label { display: block; margin-top: 10px; }
+    input, button { width: 100%; padding: 7px; margin-top: 5px; box-sizing: border-box; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    .countdown { margin-top: 10px; font-weight: bold; color: #333; }
+    #currentTime { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 20px; }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900 selection:bg-blue-200">
-  <!-- Header -->
-  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
-    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center gap-4">
-      <div class="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-blue-600"><path d="M5.25 2.25a.75.75 0 0 1 .75.75v1.5h12V3a.75.75 0 0 1 1.5 0v1.5h.75A2.25 2.25 0 0 1 22 6.75v11.25A3.75 3.75 0 0 1 18.25 21.75H5.75A3.75 3.75 0 0 1 2 18V6.75A2.25 2.25 0 0 1 4.25 4.5H5V3a.75.75 0 0 1 .75-.75Z"/><path d="M6.5 9.25a.75.75 0 0 1 .75-.75h9.5a.75.75 0 0 1 0 1.5H7.25a.75.75 0 0 1-.75-.75Zm0 3.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1-.75-.75Z"/></svg>
-        <h1 class="text-xl font-bold">منصّة تأجير العجل</h1>
-      </div>
-      <div class="ms-auto flex items-center gap-3">
-        <span id="now" class="text-sm text-gray-600">—</span>
-        <button id="clearAll" class="text-xs rounded-lg border px-3 py-1.5 hover:bg-gray-50 active:scale-[.98]">تفريغ كل الحجوزات</button>
-      </div>
-    </div>
-  </header>  <main class="mx-auto max-w-6xl px-4 py-6">
-    <!-- Info bar -->
-    <div class="mb-6 grid gap-3 sm:grid-cols-2">
-      <div class="rounded-2xl bg-blue-50 border border-blue-200 p-4">
-        <p class="text-sm leading-7">ابدأ بإدخال <b>اسم المستأجر</b> و <b>اسم العجلة</b> و <b>المدة بالدقائق</b>، ثم اضغط <b>ابدأ الإيجار</b>. سيظهر عدّاد تنازلي ويُحفظ الحجز في السحابة.</p>
-      </div>
-      <div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-4">
-        <p class="text-sm">الإيجارات متزامنة عبر الأجهزة. يمكنك إيقاف الإيجار في أي وقت.</p>
-      </div>
-    </div><!-- Grid of bikes -->
-<section id="bikes" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></section>
+<body>
 
-  </main>  <!-- Toasts -->  <div id="toast" class="fixed bottom-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] rounded-xl border bg-white shadow-lg p-4 text-sm hidden"></div>  <!-- Alarm audio --><audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+<h1>صفحة تأجير العجل</h1>
+<div id="currentTime">جارٍ تحميل الوقت...</div>
+<div id="bikesContainer"></div>
 
-  <!-- Firebase v8 (compat & simplest for single-file demos) -->  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>  <script>
-    // =====================
-    // 1) Firebase config
-    // =====================
-    const firebaseConfig = {
-      apiKey: "PUT-YOUR-API-KEY-HERE",
-      authDomain: "YOUR-PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
-      projectId: "YOUR-PROJECT-ID",
-      storageBucket: "YOUR-PROJECT.appspot.com",
-      messagingSenderId: "",
-      appId: ""
+<audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+  // إعداد Firebase (بدل القيم بتاعتك هنا)
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "XXXX",
+    appId: "XXXX"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+
+  // دوال الوقت
+  function getLocalTime() { return new Date(); }
+  function formatTime12(date) {
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'م' : 'ص';
+    hours = hours % 12; hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  function updateCurrentTime() {
+    document.getElementById('currentTime').textContent = `الوقت الحالي: ${formatTime12(getLocalTime())}`;
+  }
+  setInterval(updateCurrentTime, 1000); updateCurrentTime();
+
+  // إعداد الواجهة
+  const BIKE_COUNT = 10; 
+  const timers = {};
+  const container = document.getElementById('bikesContainer');
+
+  for (let i = 1; i <= BIKE_COUNT; i++) {
+    const div = document.createElement('div');
+    div.className = 'bike-container';
+    div.innerHTML = `
+      <h3>العجلة رقم ${i}</h3>
+      <label>اسم المستأجر:</label>
+      <input id="person${i}" />
+      <label>اسم العجلة:</label>
+      <input id="bike${i}" />
+      <label>مدة الإيجار (دقائق):</label>
+      <input type="number" id="duration${i}" min="1" />
+      <button onclick="startRent(${i})" id="startBtn${i}">ابدأ الإيجار</button>
+      <button onclick="stopRent(${i})" id="stopBtn${i}" style="background:#dc3545; margin-top:5px;">إنهاء الإيجار</button>
+      <div class="countdown" id="countdown${i}">الوقت المتبقي: -</div>
+    `;
+    container.appendChild(div);
+  }
+
+  // بدء الإيجار
+  function startRent(i) {
+    const name = document.getElementById(`person${i}`).value.trim();
+    const bike = document.getElementById(`bike${i}`).value.trim();
+    const mins = parseInt(document.getElementById(`duration${i}`).value);
+
+    if (!name || !bike || isNaN(mins) || mins <= 0) {
+      alert("من فضلك املأ جميع الخانات بشكل صحيح"); return;
+    }
+
+    const start = getLocalTime();
+    const end = new Date(start.getTime() + mins * 60 * 1000);
+
+    const data = {
+      person: name,
+      bikeName: bike,
+      startTime: start.getTime(),
+      endTime: end.getTime()
     };
-    // TODO: استبدل القيم أعلاه بقيم مشروعك (من Firebase Console)
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // حفظ في Firebase
+    database.ref("bikes/" + i).set(data);
 
-    // =====================
-    // 2) Small helpers
-    // =====================
-    const $ = (s, r = document) => r.querySelector(s);
-    const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+    // تشغيل العداد فوراً محلياً
+    updateCountdown(i, end.getTime(), name, bike);
+  }
 
-    function fmt12(d){
-      const date = (d instanceof Date) ? d : new Date(d);
-      let h = date.getHours();
-      const m = String(date.getMinutes()).padStart(2, '0');
-      const s = String(date.getSeconds()).padStart(2, '0');
-      const ampm = h >= 12 ? 'م' : 'ص';
-      h = h % 12; h = h ? h : 12;
-      return `${h}:${m}:${s} ${ampm}`;
-    }
+  // إيقاف الإيجار
+  function stopRent(i) { database.ref("bikes/" + i).remove(); }
 
-    function toast(msg, type = 'info'){
-      const el = $('#toast');
-      el.classList.remove('hidden');
-      el.className = `fixed bottom-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] rounded-xl border p-4 text-sm shadow-lg bg-white ${type==='error'?'border-red-300':'border-gray-200'}`;
-      el.innerHTML = msg;
-      clearTimeout(el._t);
-      el._t = setTimeout(()=> el.classList.add('hidden'), 2800);
-    }
+  // تحديث العداد
+  function updateCountdown(i, endTime, person, bikeName) {
+    const countdownEl = document.getElementById(`countdown${i}`);
+    if (timers[i]) clearInterval(timers[i]);
 
-    // =====================
-    // 3) UI rendering
-    // =====================
-    const BIKE_COUNT = 12; // غيّر العدد حسب احتياجك
-    const timers = {}; // للحفاظ على مؤقت كل عجلة
+    function tick() {
+      const now = Date.now();
+      let diff = Math.floor((endTime - now) / 1000);
+      const returnTime = formatTime12(new Date(endTime));
 
-    function bikeCard(i){
-      return `
-        <article class="group rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 grid place-items-center font-bold">${i}</div>
-            <h3 class="text-base font-semibold">العجلة رقم ${i}</h3>
-            <span id="status${i}" class="ms-auto text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">متاحة</span>
-          </div>
-          <label class="block text-sm text-gray-600 mb-1">اسم المستأجر</label>
-          <input id="person${i}" class="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200" placeholder="اكتب اسم المستأجر" />
-
-          <label class="block text-sm text-gray-600 mt-3 mb-1">اسم العجلة</label>
-          <input id="bike${i}" class="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200" placeholder="اكتب اسم العجلة" />
-
-          <div class="grid grid-cols-2 gap-3 mt-3">
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">المدة (دقائق)</label>
-              <input id="mins${i}" type="number" min="1" class="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200" placeholder="مثال: 30" />
-            </div>
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">ينتهي عند</label>
-              <div id="return${i}" class="h-[38px] rounded-xl border bg-gray-50 px-3 py-2 text-sm grid place-items-start">—</div>
-            </div>
-          </div>
-
-          <div class="mt-4 flex items-center gap-2">
-            <button id="start${i}" class="flex-1 rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700 active:scale-[.98]">ابدأ الإيجار</button>
-            <button id="stop${i}" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-700 active:scale-[.98]" disabled>إنهاء</button>
-          </div>
-
-          <div id="cd${i}" class="mt-3 text-sm font-semibold text-gray-700">الوقت المتبقي: —</div>
-        </article>`;
-    }
-
-    function renderGrid(){
-      const wrap = $('#bikes');
-      wrap.innerHTML = Array.from({length: BIKE_COUNT}, (_,k)=> bikeCard(k+1)).join('');
-
-      for(let i=1;i<=BIKE_COUNT;i++){
-        $('#start'+i).addEventListener('click', ()=> startRent(i));
-        $('#stop'+i).addEventListener('click', ()=> stopRent(i));
-      }
-    }
-
-    // =====================
-    // 4) Realtime logic
-    // =====================
-    function startRent(i){
-      const person = $('#person'+i).value.trim();
-      const bike   = $('#bike'+i).value.trim();
-      const mins   = parseInt($('#mins'+i).value, 10);
-      if(!person || !bike || !mins || mins<=0){
-        toast('⚠️ برجاء إدخال اسم المستأجر واسم العجلة والمدة بشكل صحيح', 'error');
+      if (diff <= 0) {
+        countdownEl.innerHTML = `انتهى وقت إيجار "<b>${bikeName}</b>" لـ "<b>${person}</b>" عند ${returnTime}`;
+        document.getElementById('alarm').play();
+        clearInterval(timers[i]);
         return;
       }
-      const start = Date.now();
-      const end   = start + mins*60*1000;
 
-      db.ref('bikes/'+i).set({
-        person, bikeName: bike, startTime: start, endTime: end
-      }).then(()=>{
-        toast(`✅ تم بدء الإيجار للعجلة ${i}.`);
-      }).catch(err=>{
-        toast('خطأ أثناء الحفظ: '+err.message, 'error');
-      });
+      const mins = Math.floor(diff / 60);
+      const secs = diff % 60;
+      countdownEl.innerHTML = `الوقت المتبقي: ${mins} دقيقة و ${secs} ثانية | ينتهي: ${returnTime}`;
     }
 
-    function stopRent(i){
-      db.ref('bikes/'+i).remove().then(()=>{
-        toast(`🛑 تم إنهاء إيجار العجلة ${i}.`);
-      }).catch(err=> toast('خطأ أثناء الإيقاف: '+err.message, 'error'));
-    }
+    tick();
+    timers[i] = setInterval(tick, 1000);
+  }
 
-    function setDisabled(i, on){
-      $('#person'+i).disabled = on;
-      $('#bike'+i).disabled = on;
-      $('#mins'+i).disabled = on;
-      $('#start'+i).disabled = on;
-      $('#stop'+i).disabled = !on;
-      $('#status'+i).textContent = on ? 'قيد الإيجار' : 'متاحة';
-      $('#status'+i).className = 'ms-auto text-xs px-2 py-1 rounded-full '+(on?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700');
-    }
-
-    function startCountdown(i, endTime, person, bikeName){
-      const el = $('#cd'+i);
-      const ret = $('#return'+i);
-      if(timers[i]) clearInterval(timers[i]);
-
-      function tick(){
-        const now = Date.now();
-        let diff = Math.floor((Number(endTime) - now)/1000);
-        if(diff <= 0){
-          el.textContent = `⏰ انتهى الوقت لـ "${bikeName}" (${person})`;
-          $('#alarm').play().catch(()=>{});
-          clearInterval(timers[i]);
-          setDisabled(i, false);
-          ret.textContent = '—';
-          return;
-        }
-        const m = Math.floor(diff/60);
-        const s = diff % 60;
-        el.textContent = `الوقت المتبقي: ${m} دقيقة و ${String(s).padStart(2,'0')} ثانية`;
-        ret.textContent = fmt12(endTime);
+  // المزامنة مع Firebase
+  database.ref("bikes").on('value', snapshot => {
+    const bikesData = snapshot.val() || {};
+    for (let i = 1; i <= BIKE_COUNT; i++) {
+      if (bikesData[i]) {
+        const { person, bikeName, endTime } = bikesData[i];
+        document.getElementById(`person${i}`).value = person;
+        document.getElementById(`bike${i}`).value = bikeName;
+        document.getElementById(`duration${i}`).disabled = true;
+        document.getElementById(`startBtn${i}`).disabled = true;
+        updateCountdown(i, endTime, person, bikeName);
+      } else {
+        document.getElementById(`person${i}`).value = '';
+        document.getElementById(`bike${i}`).value = '';
+        document.getElementById(`duration${i}`).value = '';
+        document.getElementById(`duration${i}`).disabled = false;
+        document.getElementById(`startBtn${i}`).disabled = false;
+        document.getElementById(`countdown${i}`).textContent = 'الوقت المتبقي: -';
+        if (timers[i]) { clearInterval(timers[i]); timers[i] = null; }
       }
-      tick();
-      timers[i] = setInterval(tick, 1000);
     }
+  });
+</script>
 
-    function stopCountdown(i){
-      if(timers[i]){ clearInterval(timers[i]); timers[i] = null; }
-      $('#cd'+i).textContent = 'الوقت المتبقي: —';
-      $('#return'+i).textContent = '—';
-      setDisabled(i, false);
-    }
-
-    function bindRealtime(){
-      db.ref('bikes').on('value', snap=>{
-        const data = snap.val() || {};
-        for(let i=1;i<=BIKE_COUNT;i++){
-          if(data[i]){
-            const {person, bikeName, endTime} = data[i];
-            $('#person'+i).value = person || '';
-            $('#bike'+i).value   = bikeName || '';
-            setDisabled(i, true);
-            startCountdown(i, Number(endTime), person, bikeName);
-          }else{
-            // clear UI
-            stopCountdown(i);
-            $('#person'+i).value = '';
-            $('#bike'+i).value = '';
-            $('#mins'+i).value = '';
-          }
-        }
-      });
-    }
-
-    function tickNow(){ $('#now').textContent = fmt12(new Date()); }
-
-    // Boot
-    renderGrid();
-    bindRealtime();
-    tickNow(); setInterval(tickNow, 1000);
-
-    // Clear all button
-    $('#clearAll').addEventListener('click', ()=>{
-      if(confirm('هل تريد مسح كل الحجوزات؟')){
-        db.ref('bikes').remove().then(()=> toast('تم التفريغ بنجاح ✅'));
-      }
-    });
-  </script></body>
+</body>
 </html>

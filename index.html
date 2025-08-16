@@ -24,12 +24,10 @@
 
 <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-  // إعداد Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyBmGUwMrocACdo3eelRAvTMFWLD8Bc9SAo",
     authDomain: "sekl-8ceef.firebaseapp.com",
@@ -42,7 +40,6 @@
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
-  // الوقت الحالي
   function getLocalTime() {
     return new Date();
   }
@@ -63,8 +60,7 @@
   setInterval(updateCurrentTime, 1000);
   updateCurrentTime();
 
-  // إنشاء العجل
-  const bikeCount = 10; // خليها صغيرة للتجربة
+  const bikeCount = 50;
   const timers = {};
   const container = document.getElementById('bikesContainer');
 
@@ -86,7 +82,6 @@
     container.appendChild(div);
   }
 
-  // بدء الإيجار
   function startRent(i) {
     const name = document.getElementById(`person${i}`).value.trim();
     const bike = document.getElementById(`bike${i}`).value.trim();
@@ -103,17 +98,15 @@
     database.ref("bikes/" + i).set({
       person: name,
       bikeName: bike,
-      startTime: start.getTime(),
-      endTime: end.getTime()
+      startTime: Number(start.getTime()),  // ✅ نخزن كـ Number
+      endTime: Number(end.getTime())       // ✅ نخزن كـ Number
     });
   }
 
-  // إيقاف الإيجار
   function stopRent(i) {
     database.ref("bikes/" + i).remove();
   }
 
-  // تحديث العد التنازلي
   function updateCountdown(i, endTime, person, bikeName) {
     const countdownEl = document.getElementById(`countdown${i}`);
     if (timers[i]) clearInterval(timers[i]);
@@ -131,6 +124,10 @@
         `;
         document.getElementById('alarm').play();
         clearInterval(timers[i]);
+        document.getElementById(`startBtn${i}`).disabled = false;
+        document.getElementById(`person${i}`).disabled = false;
+        document.getElementById(`bike${i}`).disabled = false;
+        document.getElementById(`duration${i}`).disabled = false;
         return;
       }
 
@@ -146,21 +143,22 @@
     timers[i] = setInterval(tick, 1000);
   }
 
-  // مزامنة مع Firebase
   database.ref("bikes").on('value', snapshot => {
     const bikesData = snapshot.val() || {};
 
     for (let i = 1; i <= bikeCount; i++) {
       if (bikesData[i]) {
         const { person, bikeName, endTime } = bikesData[i];
-        document.getElementById(`person${i}`).value = person;
-        document.getElementById(`bike${i}`).value = bikeName;
-        document.getElementById(`person${i}`).disabled = true;
-        document.getElementById(`bike${i}`).disabled = true;
-        document.getElementById(`duration${i}`).disabled = true;
-        document.getElementById(`startBtn${i}`).disabled = true;
+        if (endTime) {
+          document.getElementById(`person${i}`).value = person;
+          document.getElementById(`bike${i}`).value = bikeName;
+          document.getElementById(`person${i}`).disabled = true;
+          document.getElementById(`bike${i}`).disabled = true;
+          document.getElementById(`duration${i}`).disabled = true;
+          document.getElementById(`startBtn${i}`).disabled = true;
 
-        updateCountdown(i, endTime, person, bikeName);
+          updateCountdown(i, Number(endTime), person, bikeName); // ✅ نخليها Number
+        }
       } else {
         document.getElementById(`person${i}`).value = '';
         document.getElementById(`bike${i}`).value = '';

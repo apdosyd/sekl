@@ -1,127 +1,171 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8">
-  <title>تجربة تأجير العجل - موبايل</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>صفحة تأجير العجل</title>
+  <style>
+    body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; background: #f5f5f5; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .bike-container { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 0 5px #ccc; }
+    label { display: block; margin-top: 10px; }
+    input, button { width: 100%; padding: 7px; margin-top: 5px; box-sizing: border-box; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    .countdown { margin-top: 10px; font-weight: bold; color: #333; }
+    #currentTime { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+    .log { background: #222; color: #0f0; padding: 10px; font-size: 12px; height: 120px; overflow-y: auto; direction: ltr; }
+  </style>
 </head>
 <body>
-  <h1>تجربة العد التنازلي (3 عجلات)</h1>
-  <div id="debug" style="background:#eee; padding:10px; margin:10px 0; font-size:14px;"></div>
-  <div id="bikesContainer"></div>
 
-  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+<h1>صفحة تأجير العجل</h1>
+<div id="currentTime">جارٍ تحميل الوقت...</div>
+<div id="bikesContainer"></div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<h3>📋 سجل الأحداث:</h3>
+<div class="log" id="logBox"></div>
 
-  <script>
-    // 🔥 إعداد Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyBmGUwMrocACdo3eelRAvTMFWLD8Bc9SAo",
-      authDomain: "sekl-8ceef.firebaseapp.com",
-      databaseURL: "https://sekl-8ceef-default-rtdb.firebaseio.com",
-      projectId: "sekl-8ceef",
-      storageBucket: "sekl-8ceef.appspot.com",
-      messagingSenderId: "805869746836",
-      appId: "1:805869746836:web:be1900eae9d5b7c6f2d281"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+<audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
-    const timers = {};
-    const bikeCount = 3;
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-    const container = document.getElementById("bikesContainer");
-    const debug = document.getElementById("debug");
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBmGUwMrocACdo3eelRAvTMFWLD8Bc9SAo",
+    authDomain: "sekl-8ceef.firebaseapp.com",
+    databaseURL: "https://sekl-8ceef-default-rtdb.firebaseio.com",
+    projectId: "sekl-8ceef",
+    storageBucket: "sekl-8ceef.appspot.com",
+    messagingSenderId: "805869746836",
+    appId: "1:805869746836:web:be1900eae9d5b7c6f2d281"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    function log(msg) {
-      debug.innerHTML += msg + "<br>";
+  function log(msg) {
+    const box = document.getElementById("logBox");
+    box.innerHTML += msg + "<br>";
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function formatTime12(date) {
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'م' : 'ص';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes}:${seconds} ${ampm}`;
+  }
+
+  function updateCurrentTime() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent = `الوقت الحالي: ${formatTime12(now)}`;
+  }
+  setInterval(updateCurrentTime, 1000);
+  updateCurrentTime();
+
+  const bikeCount = 5; // للتجربة خليه 5 بس
+  const timers = {};
+  const container = document.getElementById('bikesContainer');
+
+  for (let i = 1; i <= bikeCount; i++) {
+    const div = document.createElement('div');
+    div.className = 'bike-container';
+    div.innerHTML = `
+      <h3>العجلة رقم ${i}</h3>
+      <label>اسم المستأجر:</label>
+      <input id="person${i}" placeholder="ادخل اسم المستأجر" />
+      <label>اسم العجلة:</label>
+      <input id="bike${i}" placeholder="ادخل اسم العجلة" />
+      <label>مدة الإيجار (بالدقائق):</label>
+      <input type="number" id="duration${i}" min="1" placeholder="ادخل مدة الإيجار" />
+      <button onclick="startRent(${i})" id="startBtn${i}">ابدأ الإيجار</button>
+      <button onclick="stopRent(${i})" id="stopBtn${i}" style="background-color: #dc3545; margin-top: 5px;">إيقاف الإيجار</button>
+      <div class="countdown" id="countdown${i}">الوقت المتبقي: -</div>
+    `;
+    container.appendChild(div);
+  }
+
+  function startRent(i) {
+    const name = document.getElementById(`person${i}`).value.trim();
+    const bike = document.getElementById(`bike${i}`).value.trim();
+    const mins = parseInt(document.getElementById(`duration${i}`).value);
+
+    if (!name || !bike || isNaN(mins) || mins <= 0) {
+      alert("من فضلك املأ جميع الخانات بشكل صحيح");
+      return;
     }
 
-    for (let i = 1; i <= bikeCount; i++) {
-      container.innerHTML += `
-        <div style="border:1px solid #ccc; margin:5px; padding:10px;">
-          <h3>عجلة ${i}</h3>
-          <input id="person${i}" placeholder="اسم المستأجر">
-          <input id="bike${i}" placeholder="اسم العجلة">
-          <input id="duration${i}" type="number" placeholder="مدة بالدقايق">
-          <button onclick="startRent(${i})">ابدأ</button>
-          <button onclick="stopRent(${i})">إلغاء</button>
-          <p id="countdown${i}">الوقت المتبقي: -</p>
-        </div>
-      `;
-    }
+    const start = new Date();
+    const end = new Date(start.getTime() + mins * 60 * 1000);
 
-    function startRent(i) {
-      const person = document.getElementById(`person${i}`).value.trim();
-      const bike = document.getElementById(`bike${i}`).value.trim();
-      const mins = parseInt(document.getElementById(`duration${i}`).value);
+    db.ref("bikes/" + i).set({
+      person: name,
+      bikeName: bike,
+      startTime: start.getTime(),
+      endTime: end.getTime()
+    });
 
-      if (!person || !bike || isNaN(mins) || mins <= 0) {
-        alert("ادخل البيانات كاملة");
+    log(`✅ بدأ إيجار (${name}) لـ (${bike}) - ينتهي عند: ${formatTime12(end)}`);
+  }
+
+  function stopRent(i) {
+    db.ref("bikes/" + i).remove();
+    log(`🛑 تم إيقاف إيجار العجلة ${i}`);
+  }
+
+  function updateCountdown(i, endTime, person, bikeName) {
+    const countdownEl = document.getElementById(`countdown${i}`);
+    if (timers[i]) clearInterval(timers[i]);
+
+    function tick() {
+      const now = Date.now();
+      let diff = Math.floor((endTime - now) / 1000);
+
+      const returnTime = formatTime12(new Date(endTime));
+
+      if (diff <= 0) {
+        countdownEl.innerHTML = `انتهى وقت إيجار "<strong>${bikeName}</strong>" لـ "<strong>${person}</strong>"!<br> وقت الانتهاء كان: <strong>${returnTime}</strong>`;
+        document.getElementById('alarm').play();
+        clearInterval(timers[i]);
         return;
       }
 
-      const start = Date.now();
-      const end = start + mins * 60 * 1000;
-
-      log(`⏰ بدأ إيجار (${bike}) لـ (${person}) - ينتهي عند: ${new Date(end).toLocaleTimeString()}`);
-
-      db.ref("bikes/" + i).set({
-        person,
-        bikeName: bike,
-        startTime: start,
-        endTime: end
-      });
+      const mins = Math.floor(diff / 60);
+      const secs = diff % 60;
+      countdownEl.innerHTML = `⏳ الوقت المتبقي: <strong>${mins}</strong> دقيقة و <strong>${secs}</strong> ثانية<br> ينتهي الساعة: <strong>${returnTime}</strong>`;
     }
 
-    function stopRent(i) {
-      db.ref("bikes/" + i).remove();
-      log(`🛑 تم إلغاء إيجار العجلة ${i}`);
-    }
+    tick();
+    timers[i] = setInterval(tick, 1000);
+  }
 
-    function updateCountdown(i, endTime, person, bikeName) {
-      const el = document.getElementById(`countdown${i}`);
-      if (timers[i]) clearInterval(timers[i]);
+  db.ref("bikes").on("value", snapshot => {
+    const data = snapshot.val() || {};
 
-      function tick() {
-        const now = Date.now();
-        const diff = Math.floor((endTime - now) / 1000);
+    for (let i = 1; i <= bikeCount; i++) {
+      if (data[i]) {
+        const { person, bikeName, endTime } = data[i];
+        log(`➡️ تحميل إيجار للعجلة ${i}: ${person}, ${bikeName}, endTime=${endTime} (${typeof endTime})`);
 
-        if (diff <= 0) {
-          el.innerText = `انتهى وقت ${bikeName} لـ ${person}`;
-          document.getElementById("alarm").play();
-          clearInterval(timers[i]);
-          return;
-        }
-
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-        el.innerText = `الوقت المتبقي: ${mins} دقيقة ${secs} ثانية`;
-      }
-
-      tick();
-      timers[i] = setInterval(tick, 1000);
-    }
-
-    db.ref("bikes").on("value", snap => {
-      const data = snap.val() || {};
-      log("📥 تحديث من Firebase: " + JSON.stringify(data));
-
-      for (let i = 1; i <= bikeCount; i++) {
-        if (data[i]) {
-          const { person, bikeName, endTime } = data[i];
-          log(`➡️ تحميل إيجار للعجلة ${i}: ${person}, ${bikeName}, endTime=${endTime}`);
+        if (endTime) {
           updateCountdown(i, Number(endTime), person, bikeName);
         } else {
-          document.getElementById(`countdown${i}`).innerText = "الوقت المتبقي: -";
-          if (timers[i]) {
-            clearInterval(timers[i]);
-            timers[i] = null;
-          }
+          log(`⚠️ مفيش endTime راجع من Firebase للعجلة ${i}`);
+        }
+      } else {
+        document.getElementById(`countdown${i}`).textContent = "الوقت المتبقي: -";
+        if (timers[i]) {
+          clearInterval(timers[i]);
+          timers[i] = null;
         }
       }
-    });
-  </script>
+    }
+  });
+</script>
+
 </body>
 </html>

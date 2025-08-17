@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🚲 منصّة تأجير العجل</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { transition: background 0.4s; }</style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 text-gray-900 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100">
+
+<header class="sticky top-0 z-10 bg-white/70 dark:bg-gray-900/70 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center gap-4">
+    <h1 class="text-xl font-bold text-blue-600">🚲 منصّة تأجير العجل</h1>
+    <div class="ms-auto flex items-center gap-3">
+      <span id="now" class="text-sm text-gray-600 dark:text-gray-300">—</span>
+      <button id="toggleDark" class="text-xs rounded-lg border px-3 py-1.5">🌙</button>
+      <button id="clearAll" class="text-xs rounded-lg border px-3 py-1.5">تفريغ الكل</button>
+    </div>
+  </div>
+</header>
+
+<section class="mx-auto max-w-6xl px-4 py-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+  <div class="rounded-xl bg-emerald-100 dark:bg-emerald-900 p-3 text-center">
+    <p>🚲 متاحة</p><b id="availableCount">0</b>
+  </div>
+  <div class="rounded-xl bg-amber-100 dark:bg-amber-900 p-3 text-center">
+    <p>⏳ مؤجرة</p><b id="rentedCount">0</b>
+  </div>
+  <div class="col-span-2 sm:col-span-1">
+    <input id="searchBox" class="w-full rounded-xl border px-3 py-2 text-sm focus:ring dark:bg-gray-800 dark:border-gray-700" placeholder="🔍 ابحث بالاسم أو الرقم">
+  </div>
+</section>
+
+<main class="mx-auto max-w-6xl px-4 py-6">
+  <section id="bikes" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></section>
+</main>
+
+<div id="toast" class="fixed bottom-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] rounded-xl border bg-white dark:bg-gray-800 shadow-lg p-4 text-sm hidden"></div>
+
+<audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+<!-- app.js -->
+<script type="module" src="./app.js"></script>
+</body>
+</html>

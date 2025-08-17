@@ -1,126 +1,19 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تأجير العجلات</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>body{transition:0.4s}</style>
+  <meta charset="UTF-8">
+  <title>🚲 منصة تأجير العجل</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    .bike { border: 1px solid #ccc; padding: 10px; margin: 10px; }
+    .rented { background: #fdd; }
+    .available { background: #dfd; }
+  </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+<body>
+  <h1>🚲 منصة تأجير العجل</h1>
+  <div id="bikes"></div>
 
-<header class="sticky top-0 bg-white dark:bg-gray-800 p-4 flex justify-between">
-<h1 class="text-xl font-bold text-blue-600">🚲 منصة التأجير</h1>
-<span id="now">—</span>
-</header>
-
-<div class="max-w-4xl mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="bikes"></div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, remove, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyD5zCOEqEBNUULIxtadn6wNF_QU_PgbOQ0",
-  authDomain: "sekl-c6dbf.firebaseapp.com",
-  databaseURL: "https://sekl-c6dbf-default-rtdb.firebaseio.com",
-  projectId: "sekl-c6dbf",
-  storageBucket: "sekl-c6dbf.appspot.com",
-  messagingSenderId: "158135231453",
-  appId: "1:158135231453:web:d1ddad09b14f2390004c34"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const BIKE_COUNT = 6;
-const timers = {};
-
-function renderBikes(){
-  const container = document.getElementById('bikes');
-  container.innerHTML = '';
-  for(let i=1;i<=BIKE_COUNT;i++){
-    const card = document.createElement('div');
-    card.id = 'bikeCard'+i;
-    card.className='p-4 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-2';
-    card.innerHTML=`
-      <h2 class="font-bold">العجلة ${i}</h2>
-      <input id="person${i}" placeholder="اسم المستأجر" class="border px-2 py-1 rounded"/>
-      <input id="bike${i}" placeholder="اسم العجلة" class="border px-2 py-1 rounded"/>
-      <input id="mins${i}" type="number" placeholder="مدة بالدقائق" class="border px-2 py-1 rounded"/>
-      <div class="flex gap-2 mt-2">
-        <button id="start${i}" class="flex-1 bg-blue-600 text-white rounded py-1">▶️ بدء</button>
-        <button id="stop${i}" class="flex-1 bg-red-600 text-white rounded py-1" disabled>⏹️ إنهاء</button>
-      </div>
-      <p id="status${i}">متاحة</p>
-      <p id="cd${i}">الوقت المتبقي: —</p>
-    `;
-    container.appendChild(card);
-
-    document.getElementById('start'+i).onclick=()=>startRent(i);
-    document.getElementById('stop'+i).onclick=()=>stopRent(i);
-  }
-}
-
-function startRent(i){
-  const person=document.getElementById('person'+i).value.trim();
-  const bikeName=document.getElementById('bike'+i).value.trim();
-  const mins=parseInt(document.getElementById('mins'+i).value);
-  if(!person||!bikeName||!mins||mins<=0){alert('أدخل البيانات كاملة'); return;}
-  const endTime=Date.now()+mins*60000;
-  set(ref(db,'bikes/'+i),{person,bikeName,endTime});
-}
-
-function stopRent(i){
-  remove(ref(db,'bikes/'+i));
-}
-
-function startCountdown(i,endTime){
-  clearInterval(timers[i]);
-  timers[i]=setInterval(()=>{
-    const diff=Math.floor((endTime-Date.now())/1000);
-    if(diff<=0){
-      clearInterval(timers[i]);
-      document.getElementById('cd'+i).innerText='الوقت انتهى';
-      document.getElementById('status'+i).innerText='متاحة';
-      document.getElementById('start'+i).disabled=false;
-      document.getElementById('stop'+i).disabled=true;
-      return;
-    }
-    const m=Math.floor(diff/60), s=diff%60;
-    document.getElementById('cd'+i).innerText=`الوقت المتبقي: ${m}:${s.toString().padStart(2,'0')}`;
-  },1000);
-}
-
-// Realtime binding
-onValue(ref(db,'bikes'),snap=>{
-  const data=snap.val()||{};
-  for(let i=1;i<=BIKE_COUNT;i++){
-    if(data[i]){
-      const {person,bikeName,endTime}=data[i];
-      document.getElementById('person'+i).value=person;
-      document.getElementById('bike'+i).value=bikeName;
-      document.getElementById('status'+i).innerText='مؤجرة';
-      document.getElementById('start'+i).disabled=true;
-      document.getElementById('stop'+i).disabled=false;
-      startCountdown(i,endTime);
-    } else {
-      document.getElementById('person'+i).value='';
-      document.getElementById('bike'+i).value='';
-      document.getElementById('mins'+i).value='';
-      document.getElementById('status'+i).innerText='متاحة';
-      document.getElementById('cd'+i).innerText='الوقت المتبقي: —';
-      document.getElementById('start'+i).disabled=false;
-      document.getElementById('stop'+i).disabled=true;
-      clearInterval(timers[i]);
-    }
-  }
-});
-
-setInterval(()=>{document.getElementById('now').innerText=new Date().toLocaleTimeString()},1000);
-
-renderBikes();
-</script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

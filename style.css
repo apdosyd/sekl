@@ -1,0 +1,56 @@
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to bottom right, #d0f0ff, #d4f1d4);
+  margin: 0;
+  padding: 0;
+  direction: rtl;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  background: rgba(255,255,255,0.8);
+  padding: 15px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+}
+
+#bikesContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  padding: 20px;
+}
+
+.bike-container {
+  background: white;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.bike-container input, .bike-container button {
+  width: 100%;
+  margin-bottom: 5px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #aaa;
+}
+
+.bike-container button {
+  background: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.bike-container button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.countdown {
+  font-weight: bold;
+  margin-top: 5px;
+  text-align: center;
+}

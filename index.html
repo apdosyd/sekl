@@ -37,8 +37,6 @@ const db = getDatabase(app);
 const BIKE_COUNT = 6;
 const timers = {};
 
-function fmtTime(ms){ const d=new Date(ms); let h=d.getHours()%12||12,m=d.getMinutes(),s=d.getSeconds(); return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }
-
 function renderBikes(){
   const container = document.getElementById('bikes');
   container.innerHTML = '';

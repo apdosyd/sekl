@@ -1,19 +1,146 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>🚲 منصة تأجير العجل</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; }
-    .bike { border: 1px solid #ccc; padding: 10px; margin: 10px; }
-    .rented { background: #fdd; }
-    .available { background: #dfd; }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>منصّة تأجير العجل</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="color-scheme" content="light dark" />
 </head>
-<body>
-  <h1>🚲 منصة تأجير العجل</h1>
-  <div id="bikes"></div>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 text-gray-900 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100">
 
-  <script type="module" src="app.js"></script>
+  <!-- Counters -->
+  <section class="mx-auto max-w-6xl px-4 py-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+    <div class="rounded-xl bg-emerald-100 dark:bg-emerald-900 p-3 text-center">
+      <p>🚲 متاحة</p>
+      <b id="availableCount">0</b>
+    </div>
+    <div class="rounded-xl bg-amber-100 dark:bg-amber-900 p-3 text-center">
+      <p>⏳ مؤجرة</p>
+      <b id="rentedCount">0</b>
+    </div>
+  </section>
+
+  <!-- Main -->
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    <section id="bikes" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></section>
+  </main>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, set, remove, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5zCOEqEBNUULIxtadn6wNF_QU_PgbOQ0",
+      authDomain: "sekl-c6dbf.firebaseapp.com",
+      databaseURL: "https://sekl-c6dbf-default-rtdb.firebaseio.com",
+      projectId: "sekl-c6dbf",
+      storageBucket: "sekl-c6dbf.appspot.com",
+      messagingSenderId: "158135231453",
+      appId: "1:158135231453:web:d1ddad09b14f2390004c34",
+      measurementId: "G-DNBH4Z3ZJ9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Helpers
+    const $ = (s,r=document)=>r.querySelector(s);
+    const BIKE_COUNT=6; // عدد العجل
+
+    function bikeCard(i){
+      return `
+        <article class="rounded-2xl border p-4 shadow-sm bg-white dark:bg-gray-800">
+          <h3 class="font-semibold mb-2">🚲 العجلة ${i}</h3>
+          <input id="person${i}" placeholder="👤 المستأجر" class="w-full border rounded px-2 py-1 mb-2"/>
+          <input id="bike${i}" placeholder="🚲 اسم العجلة" class="w-full border rounded px-2 py-1 mb-2"/>
+          <input id="mins${i}" type="number" min="1" placeholder="⏱️ المدة (د)" class="w-full border rounded px-2 py-1 mb-2"/>
+          <div id="cd${i}" class="text-sm mb-2">الوقت المتبقي: —</div>
+          <button id="start${i}" class="bg-blue-600 text-white px-3 py-1 rounded">تأجير</button>
+          <button id="stop${i}" class="bg-rose-600 text-white px-3 py-1 rounded" disabled>إنهاء</button>
+        </article>
+      `;
+    }
+
+    function renderGrid(){
+      const wrap=$('#bikes');
+      wrap.innerHTML=Array.from({length:BIKE_COUNT},(_,k)=>bikeCard(k+1)).join('');
+      for(let i=1;i<=BIKE_COUNT;i++){
+        $('#start'+i).onclick=()=>startRent(i);
+        $('#stop'+i).onclick=()=>stopRent(i);
+      }
+    }
+
+    // Start rent
+    function startRent(i){
+      const person=$('#person'+i).value.trim();
+      const bike=$('#bike'+i).value.trim();
+      const mins=parseInt($('#mins'+i).value,10);
+      if(!person||!bike||!mins) return alert("⚠️ أكمل البيانات");
+
+      const start=Date.now();
+      const end=start+mins*60*1000;
+      set(ref(db,'bikes/'+i),{ person,bikeName:bike,startTime:start,endTime:end });
+    }
+
+    // Stop rent
+    function stopRent(i){
+      remove(ref(db,'bikes/'+i));
+    }
+
+    // Countdown
+    function startCountdown(i,end,person,bike){
+      const el=$('#cd'+i);
+      clearInterval(el._t);
+      function tick(){
+        let diff=Math.floor((end-Date.now())/1000);
+        if(diff<=0){ 
+          el.textContent=`⏰ انتهى الوقت لـ ${bike}`;
+          $('#start'+i).disabled=false;
+          $('#stop'+i).disabled=true;
+          clearInterval(el._t);
+          return;
+        }
+        const m=Math.floor(diff/60), s=diff%60;
+        el.textContent=`${person} - متبقي: ${m}د ${s}ث`;
+      }
+      tick();
+      el._t=setInterval(tick,1000);
+    }
+
+    // Sync realtime
+    function bindRealtime(){
+      const bikesRef=ref(db,'bikes');
+      onValue(bikesRef,snap=>{
+        const data=snap.val()||{};
+        let rented=0;
+        for(let i=1;i<=BIKE_COUNT;i++){
+          if(data[i]){
+            const {person,bikeName,endTime}=data[i];
+            $('#person'+i).value=person;
+            $('#bike'+i).value=bikeName;
+            $('#start'+i).disabled=true;
+            $('#stop'+i).disabled=false;
+            startCountdown(i,endTime,person,bikeName);
+            rented++;
+          } else {
+            $('#cd'+i).textContent="الوقت المتبقي: —";
+            $('#person'+i).value='';
+            $('#bike'+i).value='';
+            $('#mins'+i).value='';
+            $('#start'+i).disabled=false;
+            $('#stop'+i).disabled=true;
+          }
+        }
+        $('#rentedCount').textContent=rented;
+        $('#availableCount').textContent=BIKE_COUNT-rented;
+      });
+    }
+
+    renderGrid();
+    bindRealtime();
+  </script>
 </body>
-</html>
+  </html>

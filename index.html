@@ -1,20 +1,257 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>🚲 منصة تأجير العجل</title>
-  <style>
-    body { font-family: Tahoma; text-align: center; background: #f0f0f0; }
-    .bike { background: #fff; margin: 10px; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    input { margin: 5px; padding: 5px; }
-    button { margin: 5px; padding: 5px 10px; }
-    .status { font-weight: bold; margin-top: 5px; }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>منصّة تأجير العجل</title>
+  <meta name="color-scheme" content="light dark" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body{transition:background .3s,color .3s}</style>
 </head>
-<body>
-  <h1>🚲 منصة تأجير العجل</h1>
-  <div id="bikesContainer"></div>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 text-gray-900 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100">
+  <!-- Header -->
+  <header class="sticky top-0 z-10 bg-white/70 dark:bg-gray-900/70 backdrop-blur border-b">
+    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center gap-4">
+      <h1 class="text-xl font-bold text-blue-600">🚲 منصّة تأجير العجل</h1>
+      <div class="ms-auto flex items-center gap-3">
+        <span id="now" class="text-sm text-gray-600 dark:text-gray-300">—</span>
+        <button id="toggleDark" class="text-xs rounded-lg border px-3 py-1.5">🌙/☀️</button>
+        <button id="clearAll" class="text-xs rounded-lg border px-3 py-1.5">تفريغ الكل</button>
+      </div>
+    </div>
+  </header>
 
-  <script type="module" src="app.js"></script>
+  <!-- Counters + Search -->
+  <section class="mx-auto max-w-6xl px-4 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+    <div class="rounded-2xl bg-emerald-100 dark:bg-emerald-900 p-3 text-center">
+      <p>🚲 متاحة</p><b id="availableCount">0</b>
+    </div>
+    <div class="rounded-2xl bg-amber-100 dark:bg-amber-900 p-3 text-center">
+      <p>⏳ مؤجرة</p><b id="rentedCount">0</b>
+    </div>
+    <div class="col-span-2">
+      <input id="searchBox" class="w-full rounded-2xl border px-3 py-2 text-sm focus:ring dark:bg-gray-800 dark:border-gray-700" placeholder="🔍 ابحث بالاسم أو رقم العجلة">
+    </div>
+  </section>
+
+  <!-- Grid -->
+  <main class="mx-auto max-w-6xl px-4 pb-10">
+    <section id="bikes" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] rounded-xl border bg-white dark:bg-gray-800 shadow-lg p-4 text-sm hidden"></div>
+
+  <!-- Alarm -->
+  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <!-- Firebase (v9 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    /* =========================
+       1) Firebase Config (مشروعك sekl-c6dbf)
+       ========================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5zCOEqEBNUULIxtadn6wNF_QU_PgbOQ0",
+      authDomain: "sekl-c6dbf.firebaseapp.com",
+      databaseURL: "https://sekl-c6dbf-default-rtdb.firebaseio.com",
+      projectId: "sekl-c6dbf",
+      storageBucket: "sekl-c6dbf.appspot.com",
+      messagingSenderId: "158135231453",
+      appId: "1:158135231453:web:d1ddad09b14f2390004c34",
+      measurementId: "G-DNBH4Z3ZJ9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ملاحظة: للتجربة السريعة خلى Rules بالشكل ده (من لوحة Firebase):
+    // {
+    //   "rules": {
+    //     ".read": true,
+    //     ".write": true
+    //   }
+    // }
+
+    /* =========================
+       2) Helpers
+       ========================= */
+    const $  = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+    function fmt12(d){
+      const date=(d instanceof Date)?d:new Date(d);
+      let h=date.getHours();
+      const m=String(date.getMinutes()).padStart(2,'0');
+      const s=String(date.getSeconds()).padStart(2,'0');
+      const ampm=h>=12?'م':'ص'; h=h%12; h=h?h:12;
+      return `${h}:${m}:${s} ${ampm}`;
+    }
+    function toast(msg){
+      const el=$('#toast');
+      el.textContent='';
+      el.innerHTML=msg;
+      el.classList.remove('hidden');
+      clearTimeout(el._t);
+      el._t=setTimeout(()=>el.classList.add('hidden'),2600);
+    }
+
+    /* =========================
+       3) UI
+       ========================= */
+    const BIKE_COUNT = 12; // غير الرقم لو عايز
+    const timers = {};
+    function bikeCard(i){
+      return `
+      <article class="rounded-2xl border dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 grid place-items-center font-bold">${i}</div>
+          <h3 class="text-base font-semibold">العجلة ${i}</h3>
+          <span id="status${i}" class="ms-auto text-[11px] px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600">متاحة</span>
+        </div>
+
+        <input id="person${i}" class="w-full rounded-xl border mb-2 px-3 py-2 text-sm dark:bg-gray-900" placeholder="👤 اسم المستأجر"/>
+        <input id="bike${i}"   class="w-full rounded-xl border mb-2 px-3 py-2 text-sm dark:bg-gray-900" placeholder="🚲 اسم العجلة"/>
+
+        <div class="grid grid-cols-2 gap-3">
+          <input id="mins${i}" type="number" min="1" class="rounded-xl border px-3 py-2 text-sm dark:bg-gray-900" placeholder="⏱️ المدة (د)"/>
+          <div id="return${i}" class="rounded-xl border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm">—</div>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button id="start${i}" class="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm">▶️ تأجير</button>
+          <button id="stop${i}"  class="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm" disabled>⏹️ إنهاء</button>
+        </div>
+
+        <div id="cd${i}" class="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">الوقت المتبقي: —</div>
+      </article>`;
+    }
+    function renderGrid(){
+      const wrap = $('#bikes');
+      wrap.innerHTML = Array.from({length:BIKE_COUNT},(_,k)=>bikeCard(k+1)).join('');
+      for(let i=1;i<=BIKE_COUNT;i++){
+        $('#start'+i).addEventListener('click',()=>startRent(i));
+        $('#stop'+i).addEventListener('click',()=>stopRent(i));
+      }
+    }
+
+    /* =========================
+       4) Logic (Firebase)
+       ========================= */
+    function startRent(i){
+      const person = $('#person'+i).value.trim();
+      const bike   = $('#bike'+i).value.trim();
+      const mins   = parseInt($('#mins'+i).value,10);
+
+      if(!person || !bike || !mins || mins<=0){
+        toast('⚠️ من فضلك أدخل البيانات كاملة');
+        return;
+      }
+      const start = Date.now();
+      const end   = start + mins*60*1000;
+
+      // اكتب في قاعدة البيانات (الجميع هيشوف)
+      db.ref('bikes/'+i).set({ person, bikeName: bike, startTime: start, endTime: end })
+        .catch(err=>toast('خطأ في الحفظ: '+err.message));
+    }
+
+    function stopRent(i){
+      // امسح من قاعدة البيانات (الجميع يتحدث)
+      db.ref('bikes/'+i).remove()
+        .catch(err=>toast('خطأ في الإنهاء: '+err.message));
+    }
+
+    function setDisabled(i,on){
+      $('#person'+i).disabled = on;
+      $('#bike'+i).disabled   = on;
+      $('#mins'+i).disabled   = on;
+      $('#start'+i).disabled  = on;
+      $('#stop'+i).disabled   = !on;
+      $('#status'+i).textContent = on ? 'مؤجرة' : 'متاحة';
+      $('#status'+i).className = 'ms-auto text-[11px] px-2 py-1 rounded-full ' + (on ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200');
+    }
+
+    function startCountdown(i,end,person,bike){
+      const el  = $('#cd'+i);
+      const ret = $('#return'+i);
+
+      if(timers[i]) clearInterval(timers[i]);
+
+      function tick(){
+        const now = Date.now();
+        let diff  = Math.floor((end - now)/1000);
+
+        if(diff <= 0){
+          el.textContent = `⏰ انتهى وقت "${bike}" (${person})`;
+          $('#alarm').play().catch(()=>{});
+          clearInterval(timers[i]);
+          setDisabled(i,false);
+          ret.textContent = '—';
+          return;
+        }
+        const m = Math.floor(diff/60);
+        const s = diff%60;
+        el.textContent = `الوقت المتبقي: ${m} دقيقة و ${String(s).padStart(2,'0')} ثانية`;
+        ret.textContent = fmt12(end);
+      }
+      tick();
+      timers[i] = setInterval(tick,1000);
+    }
+
+    function resetCard(i){
+      if(timers[i]){ clearInterval(timers[i]); timers[i]=null; }
+      $('#cd'+i).textContent = 'الوقت المتبقي: —';
+      $('#return'+i).textContent = '—';
+      $('#person'+i).value = '';
+      $('#bike'+i).value   = '';
+      $('#mins'+i).value   = '';
+      setDisabled(i,false);
+    }
+
+    function bindRealtime(){
+      db.ref('bikes').on('value', snap=>{
+        const data = snap.val() || {};
+        let rented = 0;
+
+        for(let i=1;i<=BIKE_COUNT;i++){
+          if(data[i]){
+            const {person,bikeName,endTime} = data[i];
+            $('#person'+i).value = person || '';
+            $('#bike'+i).value   = bikeName || '';
+            setDisabled(i,true);
+            startCountdown(i, Number(endTime), person, bikeName);
+            rented++;
+          } else {
+            resetCard(i);
+          }
+        }
+        $('#rentedCount').textContent   = rented;
+        $('#availableCount').textContent= BIKE_COUNT - rented;
+      });
+    }
+
+    /* =========================
+       5) Header actions
+       ========================= */
+    function tickNow(){ $('#now').textContent = fmt12(new Date()); }
+    setInterval(tickNow,1000); tickNow();
+
+    $('#toggleDark').onclick = ()=> document.documentElement.classList.toggle('dark');
+    $('#clearAll').onclick = ()=>{
+      if(confirm('مسح كل الحجوزات من القاعدة للجميع؟')) db.ref('bikes').remove();
+    };
+
+    // Search
+    $('#searchBox').addEventListener('input',e=>{
+      const val = e.target.value.toLowerCase();
+      $$('#bikes article').forEach(card=>{
+        card.style.display = card.textContent.toLowerCase().includes(val) ? '' : 'none';
+      });
+    });
+
+    // Boot
+    renderGrid();
+    bindRealtime();
+  </script>
 </body>
-</html>
+  </html>
